@@ -1,4 +1,4 @@
-import { serverFetch } from '../api-client';
+import { serverFetch, apiFetch } from '../api-client';
 import type { ApiResponse } from '../types/common';
 import type { Category, HomeCategory, SubCategory, MenuCategory } from '../types/category';
 
@@ -28,4 +28,8 @@ export async function getSubCategories(id: number) {
 
 export async function getCategoryMenu() {
   return serverFetch<{ success: boolean; data: MenuCategory[] }>('/categories/menu', { revalidate: 300, tags: ['category-menu'] });
+}
+
+export async function fetchCategoryInfo(slug: string) {
+  return apiFetch<ApiResponse<Category[]>>(`/category/info/${slug}`);
 }

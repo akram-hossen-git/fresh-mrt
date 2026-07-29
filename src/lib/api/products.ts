@@ -75,3 +75,10 @@ export async function getLastViewed() {
 export async function getSearchSuggestions(query: string) {
   return serverFetch<{ data: string[] }>(`/get-search-suggestions?query=${encodeURIComponent(query)}`, { revalidate: 0 });
 }
+
+export async function fetchCategoryProducts(slug: string, page: number = 1, sortKey?: string) {
+  const params = new URLSearchParams();
+  params.append('page', String(page));
+  if (sortKey) params.append('sort_key', sortKey);
+  return apiFetch<PaginatedResponse<ProductMini>>(`/products/category/${slug}?${params.toString()}`);
+}
