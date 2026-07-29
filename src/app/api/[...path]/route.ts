@@ -8,7 +8,7 @@ const SYSTEM_KEY = process.env.SYSTEM_KEY || process.env.NEXT_PUBLIC_SYSTEM_KEY 
 
 async function proxyRequest(req: NextRequest, pathSegments: string[]) {
   const path = pathSegments.join('/');
-  const targetUrl = new URL(`${API_HOST}/api/${path}`);
+  const targetUrl = new URL(`${API_HOST}/api/v2/${path}`);
 
   // Forward query parameters
   req.nextUrl.searchParams.forEach((value, key) => {
