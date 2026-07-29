@@ -1,25 +1,33 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, ArrowUpDown } from 'lucide-react';
-import { CategoryHierarchySidebar } from '@/components/category/category-hierarchy-sidebar';
+import Image from 'next/image';
+import { ChevronRight, ChevronLeft, ArrowUpDown } from 'lucide-react';
 import { ProductGrid } from '@/components/product/product-grid';
 import { Pagination } from '@/components/ui/pagination';
 import { fetchCategoryInfo } from '@/lib/api/categories';
 import { fetchCategoryProducts } from '@/lib/api/products';
-import type { MenuCategory, Category } from '@/lib/types/category';
+import { cn } from '@/lib/utils';
+import type { MenuCategory, MenuSubCategory, MenuSubSubCategory } from '@/lib/types/category';
 import type { ProductMini } from '@/lib/types';
 
 interface CategoryBrowseViewProps {
   initialSlug: string;
-  initialCategory: Category | null;
+  initialCategory: { id: number; slug: string; name: string } | null;
   initialProducts: ProductMini[];
   initialTotalPages: number;
   initialTotalProducts: number;
   initialPage: number;
   menuTree: MenuCategory[];
+}
+
+interface SidebarItem {
+  id: number;
+  slug: string;
+  name: string;
+  icon: string | null;
 }
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -29,6 +37,60 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'popularity', label: 'Best Selling' },
   { value: 'top_rated', label: 'Top Rated' },
 ];
+
+function findNodeAndParent(
+  menuTree: MenuCategory[],
+  slug: string,
+): {
+  parentSlug: string | null;
+  parentName: string | null;
+  children: SidebarItem[];
+} {
+  for (const cat of menuTree) {
+    if (cat.slug === slug) {
+      return {
+        parentSlug: null,
+        parentName: null,
+        children: (cat.children ?? []).map((sub) => ({
+          id: sub.id,
+          slug: sub.slug,
+          name: sub.name,
+          icon: sub.icon,
+        })),
+      };
+    }
+    for (const sub of cat.children ?? []) {
+      if (sub.slug === slug) {
+        return {
+          parentSlug: cat.slug,
+          parentName: cat.name,
+          children: (sub.children ?? []).map((ss) => ({
+            id: ss.id,
+            slug: ss.slug,
+            name: ss.name,
+            icon: null,
+          })),
+        };
+      }
+      for (const ss of sub.children ?? []) {
+        if (ss.slug === slug) {
+          const siblings = (sub.children ?? []).map((s) => ({
+            id: s.id,
+            slug: s.slug,
+            name: s.name,
+            icon: null as string | null,
+          }));
+          return {
+            parentSlug: sub.slug,
+            parentName: sub.name,
+            children: siblings,
+          };
+        }
+      }
+    }
+  }
+  return { parentSlug: null, parentName: null, children: [] };
+}
 
 export function CategoryBrowseView({
   initialSlug,
@@ -42,13 +104,20 @@ export function CategoryBrowseView({
   const router = useRouter();
 
   const [slug, setSlug] = useState(initialSlug);
-  const [category, setCategory] = useState<Category | null>(initialCategory);
+  const [category, setCategory] = useState(initialCategory);
   const [products, setProducts] = useState<ProductMini[]>(initialProducts);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [totalProducts, setTotalProducts] = useState(initialTotalProducts);
   const [page, setPage] = useState(initialPage);
   const [sortKey, setSortKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const { parentSlug, parentName, children } = useMemo(
+    () => findNodeAndParent(menuTree, slug),
+    [menuTree, slug],
+  );
+
+  const hasChildren = children.length > 0;
 
   const fetchProducts = useCallback(
     async (fetchSlug: string, fetchPage: number, fetchSort?: string) => {
@@ -58,7 +127,6 @@ export function CategoryBrowseView({
           fetchCategoryInfo(fetchSlug),
           fetchCategoryProducts(fetchSlug, fetchPage, fetchSort),
         ]);
-
         setCategory((Array.isArray(catRes.data) ? catRes.data[0] : catRes.data) ?? null);
         const newProducts = (prodRes.data ?? []) as ProductMini[];
         setProducts(newProducts);
@@ -106,14 +174,6 @@ export function CategoryBrowseView({
     [slug, fetchProducts],
   );
 
-  const subCategoryCount = menuTree.reduce((count, cat) => {
-    if (cat.slug === slug) return cat.children?.length ?? 0;
-    for (const sub of cat.children ?? []) {
-      if (sub.slug === slug) return sub.children?.length ?? 0;
-    }
-    return count;
-  }, 0);
-
   return (
     <main className="min-h-screen bg-white dark:bg-neutral-950">
       {/* Category header */}
@@ -125,9 +185,9 @@ export function CategoryBrowseView({
               <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-black uppercase leading-none text-neutral-900 dark:text-white tracking-tight">
                 {category?.name ?? 'Category'}
               </h1>
-              {subCategoryCount > 0 && (
+              {hasChildren && (
                 <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-                  {subCategoryCount} subcategor{subCategoryCount === 1 ? 'y' : 'ies'} available
+                  {children.length} subcategor{children.length === 1 ? 'y' : 'ies'} available
                 </p>
               )}
             </div>
@@ -151,6 +211,17 @@ export function CategoryBrowseView({
           >
             Categories
           </Link>
+          {parentName && (
+            <>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+              <button
+                onClick={() => handleSelect(parentSlug!)}
+                className="transition-all duration-300 hover:text-accent"
+              >
+                {parentName}
+              </button>
+            </>
+          )}
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
           <span className="font-medium text-neutral-900 dark:text-neutral-100">
             {category?.name ?? 'Category'}
@@ -160,16 +231,86 @@ export function CategoryBrowseView({
 
       {/* Content: sidebar + product grid */}
       <div className="container mx-auto pb-16">
-        <div className="flex gap-6">
-          {/* Left sidebar — category hierarchy */}
-          <CategoryHierarchySidebar
-            menuTree={menuTree}
-            currentSlug={slug}
-            onSelect={handleSelect}
-          />
+        <div className="flex border-t border-neutral-200 dark:border-neutral-800 min-h-[calc(100vh-20rem)]">
+          {/* ============================================================ */}
+          {/*  LEFT RAIL — subcategories (grocery style)                   */}
+          {/* ============================================================ */}
+          {hasChildren && (
+            <nav
+              className={cn(
+                'w-[92px] shrink-0 overflow-y-auto sm:w-[120px] lg:w-[200px]',
+                'border-r border-neutral-200 bg-neutral-50/60',
+                'dark:border-neutral-800 dark:bg-neutral-900/40',
+              )}
+              aria-label="Subcategories"
+            >
+              {/* Back to parent */}
+              {parentSlug && (
+                <button
+                  onClick={() => handleSelect(parentSlug)}
+                  className={cn(
+                    'flex w-full items-center gap-1 px-2 py-3',
+                    'border-l-[3px] border-transparent',
+                    'text-neutral-500 hover:bg-white dark:hover:bg-neutral-900 transition-colors',
+                  )}
+                >
+                  <ChevronLeft className="h-4 w-4 shrink-0" />
+                  <span className="text-[10px] font-medium lg:text-xs line-clamp-1">
+                    {parentName}
+                  </span>
+                </button>
+              )}
 
-          {/* Main content area */}
-          <div className="flex-1 min-w-0">
+              {children.map((item) => {
+                const isActive = item.slug === slug;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelect(item.slug)}
+                    aria-current={isActive ? 'true' : undefined}
+                    className={cn(
+                      'flex w-full flex-col items-center gap-1 px-1.5 py-3 lg:flex-row lg:gap-2.5 lg:px-3',
+                      'border-l-[3px] transition-colors',
+                      isActive
+                        ? 'border-accent bg-accent-light dark:bg-accent/10'
+                        : 'border-transparent hover:bg-white dark:hover:bg-neutral-900',
+                    )}
+                  >
+                    <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white dark:bg-neutral-800">
+                      {item.icon ? (
+                        <Image
+                          src={item.icon}
+                          alt=""
+                          fill
+                          className="object-contain p-1"
+                          sizes="36px"
+                        />
+                      ) : (
+                        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-accent">
+                          {item.name.slice(0, 1)}
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={cn(
+                        'line-clamp-2 text-center text-[10px] font-medium leading-tight lg:text-left lg:text-xs',
+                        isActive
+                          ? 'text-accent-dark dark:text-accent'
+                          : 'text-neutral-600 dark:text-neutral-400',
+                      )}
+                    >
+                      {item.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+
+          {/* ============================================================ */}
+          {/*  RIGHT AREA — products                                       */}
+          {/* ============================================================ */}
+          <div className={cn('min-w-0 flex-1 p-3 sm:p-4 lg:p-6', !hasChildren && 'w-full')}>
             {/* Results summary + sort */}
             <div className="mb-4 flex items-center justify-between">
               <p className="text-sm text-neutral-500 dark:text-neutral-400">
@@ -198,7 +339,7 @@ export function CategoryBrowseView({
             {isLoading ? (
               <ProductGrid products={[]} columns={3} isLoading />
             ) : products.length > 0 ? (
-              <ProductGrid products={products} columns={3} />
+              <ProductGrid products={products} columns={hasChildren ? 3 : 4} />
             ) : (
               <div className="flex flex-col items-center justify-center rounded-[8px] border border-neutral-200 bg-neutral-50 py-20 dark:border-neutral-700 dark:bg-neutral-900">
                 <p className="font-display text-lg font-bold uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
