@@ -10,12 +10,12 @@ import { Pagination } from '@/components/ui/pagination';
 import { fetchCategoryInfo } from '@/lib/api/categories';
 import { fetchCategoryProducts } from '@/lib/api/products';
 import { cn } from '@/lib/utils';
-import type { MenuCategory, MenuSubCategory, MenuSubSubCategory } from '@/lib/types/category';
+import type { MenuCategory, Category } from '@/lib/types/category';
 import type { ProductMini } from '@/lib/types';
 
 interface CategoryBrowseViewProps {
   initialSlug: string;
-  initialCategory: { id: number; slug: string; name: string } | null;
+  initialCategory: Category | null;
   initialProducts: ProductMini[];
   initialTotalPages: number;
   initialTotalProducts: number;
@@ -28,6 +28,7 @@ interface SidebarItem {
   slug: string;
   name: string;
   icon: string | null;
+  hasChildren: boolean;
 }
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -38,58 +39,42 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'top_rated', label: 'Top Rated' },
 ];
 
-function findNodeAndParent(
-  menuTree: MenuCategory[],
-  slug: string,
-): {
-  parentSlug: string | null;
-  parentName: string | null;
-  children: SidebarItem[];
-} {
+function findChildren(menuTree: MenuCategory[], slug: string): SidebarItem[] {
   for (const cat of menuTree) {
     if (cat.slug === slug) {
-      return {
-        parentSlug: null,
-        parentName: null,
-        children: (cat.children ?? []).map((sub) => ({
-          id: sub.id,
-          slug: sub.slug,
-          name: sub.name,
-          icon: sub.icon,
-        })),
-      };
+      return (cat.children ?? []).map((sub) => ({
+        id: sub.id,
+        slug: sub.slug,
+        name: sub.name,
+        icon: sub.icon,
+        hasChildren: (sub.children ?? []).length > 0,
+      }));
     }
     for (const sub of cat.children ?? []) {
       if (sub.slug === slug) {
-        return {
-          parentSlug: cat.slug,
-          parentName: cat.name,
-          children: (sub.children ?? []).map((ss) => ({
-            id: ss.id,
-            slug: ss.slug,
-            name: ss.name,
-            icon: null,
-          })),
-        };
-      }
-      for (const ss of sub.children ?? []) {
-        if (ss.slug === slug) {
-          const siblings = (sub.children ?? []).map((s) => ({
-            id: s.id,
-            slug: s.slug,
-            name: s.name,
-            icon: null as string | null,
-          }));
-          return {
-            parentSlug: sub.slug,
-            parentName: sub.name,
-            children: siblings,
-          };
-        }
+        return (sub.children ?? []).map((ss) => ({
+          id: ss.id,
+          slug: ss.slug,
+          name: ss.name,
+          icon: null,
+          hasChildren: false,
+        }));
       }
     }
   }
-  return { parentSlug: null, parentName: null, children: [] };
+  return [];
+}
+
+function findParent(menuTree: MenuCategory[], slug: string): { slug: string; name: string } | null {
+  for (const cat of menuTree) {
+    for (const sub of cat.children ?? []) {
+      if (sub.slug === slug) return { slug: cat.slug, name: cat.name };
+      for (const ss of sub.children ?? []) {
+        if (ss.slug === slug) return { slug: sub.slug, name: sub.name };
+      }
+    }
+  }
+  return null;
 }
 
 export function CategoryBrowseView({
@@ -103,8 +88,12 @@ export function CategoryBrowseView({
 }: CategoryBrowseViewProps) {
   const router = useRouter();
 
-  const [slug, setSlug] = useState(initialSlug);
-  const [category, setCategory] = useState(initialCategory);
+  const [parentSlug, setParentSlug] = useState(initialSlug);
+  const [parentCategory, setParentCategory] = useState(initialCategory);
+  const [activeSlug, setActiveSlug] = useState(() => {
+    const kids = findChildren(menuTree, initialSlug);
+    return kids.length > 0 ? kids[0].slug : initialSlug;
+  });
   const [products, setProducts] = useState<ProductMini[]>(initialProducts);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [totalProducts, setTotalProducts] = useState(initialTotalProducts);
@@ -112,22 +101,17 @@ export function CategoryBrowseView({
   const [sortKey, setSortKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { parentSlug, parentName, children } = useMemo(
-    () => findNodeAndParent(menuTree, slug),
-    [menuTree, slug],
-  );
-
+  const children = useMemo(() => findChildren(menuTree, parentSlug), [menuTree, parentSlug]);
   const hasChildren = children.length > 0;
+  const parentInfo = useMemo(() => findParent(menuTree, parentSlug), [menuTree, parentSlug]);
 
   const fetchProducts = useCallback(
-    async (fetchSlug: string, fetchPage: number, fetchSort?: string) => {
+    async (targetSlug: string, fetchPage: number, fetchSort?: string) => {
       setIsLoading(true);
       try {
-        const [catRes, prodRes] = await Promise.all([
-          fetchCategoryInfo(fetchSlug),
-          fetchCategoryProducts(fetchSlug, fetchPage, fetchSort),
+        const [prodRes] = await Promise.all([
+          fetchCategoryProducts(targetSlug, fetchPage, fetchSort),
         ]);
-        setCategory((Array.isArray(catRes.data) ? catRes.data[0] : catRes.data) ?? null);
         const newProducts = (prodRes.data ?? []) as ProductMini[];
         setProducts(newProducts);
         setTotalPages(prodRes.meta?.last_page ?? 1);
@@ -143,25 +127,74 @@ export function CategoryBrowseView({
     [],
   );
 
-  const handleSelect = useCallback(
-    (newSlug: string) => {
-      if (newSlug === slug) return;
-      setSlug(newSlug);
+  const drillDown = useCallback(
+    async (newParentSlug: string) => {
+      const kids = findChildren(menuTree, newParentSlug);
+      const firstChild = kids.length > 0 ? kids[0].slug : newParentSlug;
+
+      setParentSlug(newParentSlug);
+      setActiveSlug(firstChild);
       setPage(1);
       setSortKey('');
-      router.replace(`/categories/${newSlug}`, { scroll: false });
-      fetchProducts(newSlug, 1);
+      setIsLoading(true);
+
+      router.replace(`/categories/${newParentSlug}`, { scroll: false });
+
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          fetchCategoryInfo(newParentSlug),
+          fetchCategoryProducts(firstChild, 1),
+        ]);
+        setParentCategory((Array.isArray(catRes.data) ? catRes.data[0] : catRes.data) ?? null);
+        const newProducts = (prodRes.data ?? []) as ProductMini[];
+        setProducts(newProducts);
+        setTotalPages(prodRes.meta?.last_page ?? 1);
+        setTotalProducts(prodRes.meta?.total ?? newProducts.length);
+      } catch {
+        setProducts([]);
+        setTotalPages(1);
+        setTotalProducts(0);
+      } finally {
+        setIsLoading(false);
+      }
     },
-    [slug, router, fetchProducts],
+    [menuTree, router],
   );
+
+  const selectChild = useCallback(
+    async (childSlug: string) => {
+      setActiveSlug(childSlug);
+      setPage(1);
+      setSortKey('');
+      fetchProducts(childSlug, 1);
+    },
+    [fetchProducts],
+  );
+
+  const handleSidebarClick = useCallback(
+    (item: SidebarItem) => {
+      if (item.hasChildren) {
+        drillDown(item.slug);
+      } else {
+        selectChild(item.slug);
+      }
+    },
+    [drillDown, selectChild],
+  );
+
+  const handleBackToParent = useCallback(() => {
+    if (parentInfo) {
+      drillDown(parentInfo.slug);
+    }
+  }, [parentInfo, drillDown]);
 
   const handlePageChange = useCallback(
     (newPage: number) => {
       setPage(newPage);
-      fetchProducts(slug, newPage, sortKey || undefined);
+      fetchProducts(activeSlug, newPage, sortKey || undefined);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
-    [slug, sortKey, fetchProducts],
+    [activeSlug, sortKey, fetchProducts],
   );
 
   const handleSortChange = useCallback(
@@ -169,9 +202,9 @@ export function CategoryBrowseView({
       const newSort = e.target.value;
       setSortKey(newSort);
       setPage(1);
-      fetchProducts(slug, 1, newSort || undefined);
+      fetchProducts(activeSlug, 1, newSort || undefined);
     },
-    [slug, fetchProducts],
+    [activeSlug, fetchProducts],
   );
 
   return (
@@ -183,7 +216,7 @@ export function CategoryBrowseView({
             <div className="w-1 bg-accent rounded-full" />
             <div>
               <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-black uppercase leading-none text-neutral-900 dark:text-white tracking-tight">
-                {category?.name ?? 'Category'}
+                {parentCategory?.name ?? 'Category'}
               </h1>
               {hasChildren && (
                 <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
@@ -198,33 +231,24 @@ export function CategoryBrowseView({
       {/* Breadcrumbs */}
       <div className="container mx-auto py-4">
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-neutral-500 dark:text-neutral-400">
-          <Link
-            href="/"
-            className="transition-all duration-300 hover:text-accent"
-          >
+          <Link href="/" className="transition-all duration-300 hover:text-accent">
             Home
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <Link
-            href="/categories"
-            className="transition-all duration-300 hover:text-accent"
-          >
+          <Link href="/categories" className="transition-all duration-300 hover:text-accent">
             Categories
           </Link>
-          {parentName && (
+          {parentInfo && (
             <>
               <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-              <button
-                onClick={() => handleSelect(parentSlug!)}
-                className="transition-all duration-300 hover:text-accent"
-              >
-                {parentName}
+              <button onClick={handleBackToParent} className="transition-all duration-300 hover:text-accent">
+                {parentInfo.name}
               </button>
             </>
           )}
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
           <span className="font-medium text-neutral-900 dark:text-neutral-100">
-            {category?.name ?? 'Category'}
+            {parentCategory?.name ?? 'Category'}
           </span>
         </nav>
       </div>
@@ -245,9 +269,9 @@ export function CategoryBrowseView({
               aria-label="Subcategories"
             >
               {/* Back to parent */}
-              {parentSlug && (
+              {parentInfo && (
                 <button
-                  onClick={() => handleSelect(parentSlug)}
+                  onClick={handleBackToParent}
                   className={cn(
                     'flex w-full items-center gap-1 px-2 py-3',
                     'border-l-[3px] border-transparent',
@@ -256,17 +280,17 @@ export function CategoryBrowseView({
                 >
                   <ChevronLeft className="h-4 w-4 shrink-0" />
                   <span className="text-[10px] font-medium lg:text-xs line-clamp-1">
-                    {parentName}
+                    {parentInfo.name}
                   </span>
                 </button>
               )}
 
               {children.map((item) => {
-                const isActive = item.slug === slug;
+                const isActive = item.slug === activeSlug;
                 return (
                   <button
                     key={item.id}
-                    onClick={() => handleSelect(item.slug)}
+                    onClick={() => handleSidebarClick(item)}
                     aria-current={isActive ? 'true' : undefined}
                     className={cn(
                       'flex w-full flex-col items-center gap-1 px-1.5 py-3 lg:flex-row lg:gap-2.5 lg:px-3',
@@ -311,7 +335,6 @@ export function CategoryBrowseView({
           {/*  RIGHT AREA — products                                       */}
           {/* ============================================================ */}
           <div className={cn('min-w-0 flex-1 p-3 sm:p-4 lg:p-6', !hasChildren && 'w-full')}>
-            {/* Results summary + sort */}
             <div className="mb-4 flex items-center justify-between">
               <p className="text-sm text-neutral-500 dark:text-neutral-400">
                 <span className="font-medium text-neutral-900 dark:text-neutral-100">
@@ -335,7 +358,6 @@ export function CategoryBrowseView({
               </div>
             </div>
 
-            {/* Product grid */}
             {isLoading ? (
               <ProductGrid products={[]} columns={3} isLoading />
             ) : products.length > 0 ? (
@@ -351,7 +373,6 @@ export function CategoryBrowseView({
               </div>
             )}
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-10 flex justify-center">
                 <Pagination
