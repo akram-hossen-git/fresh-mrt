@@ -52,13 +52,13 @@ function findChildren(menuTree: MenuCategory[], slug: string): SidebarItem[] {
     }
     for (const sub of cat.children ?? []) {
       if (sub.slug === slug) {
-        return (sub.children ?? []).map((ss) => ({
-          id: ss.id,
-          slug: ss.slug,
-          name: ss.name,
-          icon: null,
-          hasChildren: false,
-        }));
+      return (sub.children ?? []).map((ss) => ({
+        id: ss.id,
+        slug: ss.slug,
+        name: ss.name,
+        icon: ss.icon ?? null,
+        hasChildren: false,
+      }));
       }
     }
   }

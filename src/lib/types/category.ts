@@ -31,6 +31,7 @@ export interface MenuSubSubCategory {
   id: number;
   slug: string;
   name: string;
+  icon?: string | null;
 }
 
 export interface MenuSubCategory {
