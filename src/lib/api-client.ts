@@ -68,7 +68,19 @@ export async function serverFetch<T>(
   });
 
   if (!res.ok) {
-    throw new ApiError(res.status, `API error: ${res.status}`);
+    // Try to read response body for better error messages (may be JSON or text)
+    let bodyText = '';
+    try {
+      bodyText = await res.text();
+    } catch (e) {
+      bodyText = '';
+    }
+    // include endpoint and body in error to ease debugging
+    const message = `API error ${res.status} ${endpoint} ${bodyText}`;
+    // log to server console during development
+    // eslint-disable-next-line no-console
+    console.error('[serverFetch] ', message);
+    throw new ApiError(res.status, message);
   }
 
   return res.json();

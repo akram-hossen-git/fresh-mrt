@@ -7,6 +7,7 @@ import { CategoryBar } from '@/components/category/category-bar';
 import { SectionHeader } from '@/components/home/section-header';
 import { ProductGrid } from '@/components/product/product-grid';
 import { ProductCarousel } from '@/components/product/product-carousel';
+import HomeCategoriesSection from '@/components/home/home-categories-section';
 import { BannerGrid } from '@/components/home/banner-grid';
 import { FlashDealBanner } from '@/components/home/flash-deal-banner';
 import { CustomerReviews } from '@/components/home/customer-reviews';
@@ -53,6 +54,13 @@ function renderSection(section: HomepageSection, data: HomepageData) {
           <CategoryBar categories={data.categories} />
         </section>
       ) : null;
+
+    case 'home-categories':
+      return (
+        <section className="container mx-auto mt-10">
+          <HomeCategoriesSection />
+        </section>
+      );
 
     case 'featured-products':
       return data.featuredProducts.length > 0 ? (

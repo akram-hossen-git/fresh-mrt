@@ -29,6 +29,7 @@ export const groceryPreset: StoreConfig = {
   homepageSections: [
     'hero-slider',
     'category-bar',
+    'home-categories',
     'trust-bar',
     'flash-deals',
     'featured-products',

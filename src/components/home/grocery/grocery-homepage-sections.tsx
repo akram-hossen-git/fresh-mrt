@@ -5,6 +5,7 @@ import { SectionHeader } from '@/components/home/section-header';
 import { ProductGrid } from '@/components/product/product-grid';
 import { SameDayDeals } from '@/components/home/grocery/same-day-deals';
 import { CategoryShowcase } from '@/components/home/grocery/category-showcase';
+import HomeCategoriesSection from '@/components/home/home-categories-section';
 import type { HomepageData } from '@/components/home/homepage-sections';
 
 /* ------------------------------------------------------------------ */
@@ -39,6 +40,11 @@ export function GroceryHomepageSections({ data }: { data: HomepageData }) {
           <CategoryBar categories={data.categories} />
         </section>
       )}
+
+      {/* Home categories: name + lazy carousel */}
+      <section className="container mx-auto mt-6 md:mt-8">
+        <HomeCategoriesSection />
+      </section>
 
       {/* 3. Shop by Aisle — each top-level dept + its subcategories.
           Self-guards when the menu tree is empty. */}
