@@ -4,6 +4,7 @@ import { CategoryBar } from '@/components/category/category-bar';
 import { SectionHeader } from '@/components/home/section-header';
 import { ProductGrid } from '@/components/product/product-grid';
 import { SameDayDeals } from '@/components/home/grocery/same-day-deals';
+import { CategoryShowcase } from '@/components/home/grocery/category-showcase';
 import type { HomepageData } from '@/components/home/homepage-sections';
 
 /* ------------------------------------------------------------------ */
@@ -14,9 +15,10 @@ import type { HomepageData } from '@/components/home/homepage-sections';
 /*                                                                     */
 /*    1. hero-slider                                                   */
 /*    2. category-bar                                                  */
-/*    3. Same-Day Deals   (flash-deals + todays-deals merged)          */
-/*    4. Buy Again        (best-sellers relabeled; guest fallback)     */
-/*    5. Recommended      (featured-products relabeled)                */
+/*    3. Shop by Aisle    (top-level depts + their subcategories)      */
+/*    4. Same-Day Deals   (flash-deals + todays-deals merged)          */
+/*    5. Buy Again        (best-sellers relabeled; guest fallback)     */
+/*    6. Recommended      (featured-products relabeled)                */
 /*                                                                     */
 /*  trust-bar + newsletter are intentionally dropped from the top.     */
 /*  The fashion path (<HomepageSections>) is untouched — this file is  */
@@ -38,14 +40,18 @@ export function GroceryHomepageSections({ data }: { data: HomepageData }) {
         </section>
       )}
 
-      {/* 3. Same-Day Deals — flash-deals + todays-deals merged */}
+      {/* 3. Shop by Aisle — each top-level dept + its subcategories.
+          Self-guards when the menu tree is empty. */}
+      <CategoryShowcase categories={data.menuCategories} />
+
+      {/* 4. Same-Day Deals — flash-deals + todays-deals merged */}
       <SameDayDeals
         todaysDeals={data.todaysDeals}
         flashDeals={data.flashDeals}
         columns={cols}
       />
 
-      {/* 4. Buy Again — best-sellers relabeled (guest fallback).
+      {/* 5. Buy Again — best-sellers relabeled (guest fallback).
           TODO: when logged in, swap to real /purchase-history in a
           client component. Guest/default = best-sellers. */}
       {data.bestSellers.length > 0 && (
@@ -59,7 +65,7 @@ export function GroceryHomepageSections({ data }: { data: HomepageData }) {
         </section>
       )}
 
-      {/* 5. Recommended — featured-products relabeled */}
+      {/* 6. Recommended — featured-products relabeled */}
       {data.featuredProducts.length > 0 && (
         <section className="container mx-auto mt-8 md:mt-10">
           <SectionHeader

@@ -1,9 +1,9 @@
-import { apiFetch } from '../api-client';
+import { apiFetch, serverFetch } from '../api-client';
 import type { ApiResponse, ActionResponse } from '../types/common';
 import type { Review } from '../types/review';
 
 export async function getProductReviews(productId: number) {
-  return apiFetch<ApiResponse<Review[]>>(`/reviews/product/${productId}`);
+  return serverFetch<ApiResponse<Review[]>>(`/reviews/product/${productId}`, { revalidate: 60 });
 }
 
 export async function submitReview(data: { product_id: number; rating: number; comment: string }) {

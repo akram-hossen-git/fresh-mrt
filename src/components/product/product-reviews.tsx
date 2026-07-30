@@ -21,6 +21,12 @@ export interface Review {
 
 interface ProductReviewsProps {
   productId: number;
+  /**
+   * Suppress the internal "Customer Reviews" <h2>. Set when the component is
+   * rendered inside something that already labels it — e.g. the grocery
+   * detail page nests it in an accordion titled "Reviews".
+   */
+  hideHeading?: boolean;
 }
 
 function ReviewSkeleton() {
@@ -167,7 +173,7 @@ function ReviewCard({ review }: { review: Review }) {
   );
 }
 
-export function ProductReviews({ productId }: ProductReviewsProps) {
+export function ProductReviews({ productId, hideHeading = false }: ProductReviewsProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -257,9 +263,13 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
-          Customer Reviews
-        </h2>
+        {hideHeading ? (
+          <span aria-hidden="true" />
+        ) : (
+          <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+            Customer Reviews
+          </h2>
+        )}
         {user && !showForm && (
           <Button
             variant="accent"

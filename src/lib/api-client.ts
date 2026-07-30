@@ -11,13 +11,14 @@ export class ApiError extends Error {
 }
 
 /**
- * Fetch helper — routes through the Next.js proxy to avoid CORS issues.
- * Token stored in localStorage, sent as Bearer header.
+ * Fetch helper — calls Laravel directly from the browser.
+ * Token stored in cookie, sent as Bearer header.
  */
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // const token = Cookies.get('auth_token');
   const token = localStorage.getItem('auth_token');
   console.log(`[apiFetch] ${endpoint} | token: ${token ? token.slice(0, 15) + '...' : 'NONE'}`);
   const headers: HeadersInit = {
@@ -28,7 +29,7 @@ export async function apiFetch<T>(
     ...(options.headers || {}),
   };
 
-  const res = await fetch(`/api${endpoint}`, {
+  const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
   });

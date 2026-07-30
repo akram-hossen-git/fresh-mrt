@@ -13,7 +13,10 @@ import { ProductVariantProvider } from '@/components/product/product-variant-con
 import { ProductGrid } from '@/components/product/product-grid';
 import { SectionHeader } from '@/components/home/section-header';
 import { RatingStars } from '@/components/ui/rating-stars';
+import { GroceryProductDetail } from '@/components/product/grocery/grocery-product-detail';
+import { storeConfig } from '@/config/store.config';
 import { truncateText } from '@/lib/utils';
+import type { ProductDetail, ProductMini } from '@/lib/types';
 
 /* -------------------------------------------------------------------------- */
 /*  Metadata                                                                  */
@@ -71,6 +74,49 @@ export default async function ProductDetailPage({ params }: PageProps) {
       ? frequentlyBoughtResult.value.data ?? []
       : [];
 
+  /* ------------------------------------------------------------------ */
+  /*  Niche gate. Grocery gets its own layout (category breadcrumb,      */
+  /*  sentence-case name, same-day cutoff, demoted shop block).          */
+  /*  Same branch pattern as src/app/categories/page.tsx.                */
+  /* ------------------------------------------------------------------ */
+  if (storeConfig.headerStyle === 'grocery') {
+    return (
+      <GroceryProductDetail
+        product={product}
+        slug={slug}
+        topFromSeller={topFromSeller}
+        frequentlyBought={frequentlyBought}
+      />
+    );
+  }
+
+  return (
+    <FashionProductDetailView
+      product={product}
+      slug={slug}
+      topFromSeller={topFromSeller}
+      frequentlyBought={frequentlyBought}
+    />
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Fashion view — the original layout, unchanged                             */
+/* -------------------------------------------------------------------------- */
+
+interface ProductDetailViewProps {
+  product: ProductDetail;
+  slug: string;
+  topFromSeller: ProductMini[];
+  frequentlyBought: ProductMini[];
+}
+
+function FashionProductDetailView({
+  product,
+  slug,
+  topFromSeller,
+  frequentlyBought,
+}: ProductDetailViewProps) {
   /* Build accordion sections */
   const accordionSections: AccordionSection[] = [
     {

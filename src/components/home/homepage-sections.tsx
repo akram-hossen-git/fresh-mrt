@@ -1,4 +1,5 @@
 import type { HomepageSection } from '@/config/store.types';
+import type { MenuCategory } from '@/lib/types/category';
 import { storeConfig } from '@/config/store.config';
 import { HeroSlider } from '@/components/home/hero-slider';
 import { TrustBar } from '@/components/home/trust-bar';
@@ -18,6 +19,9 @@ import { Newsletter } from '@/components/home/newsletter';
 export interface HomepageData {
   sliders: any[];
   categories: any[];
+  /** Full /categories/menu tree. Consumed by the grocery "Shop by Aisle"
+   *  section; unused by the fashion/standard renderer below. */
+  menuCategories: MenuCategory[];
   featuredProducts: any[];
   bestSellers: any[];
   todaysDeals: any[];

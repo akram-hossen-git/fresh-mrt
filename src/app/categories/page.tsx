@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { getCategoryMenu } from '@/lib/api/categories';
+import { getCategories, getCategoryMenu } from '@/lib/api/categories';
+import { SectionHeader } from '@/components/home/section-header';
+import { GroceryCategoryIndex } from '@/components/category/grocery/grocery-category-index';
 import { storeConfig } from '@/config/store.config';
-import { cn } from '@/lib/utils';
 import type { MenuCategory } from '@/lib/types/category';
 import type { Metadata } from 'next';
 
@@ -11,113 +12,111 @@ export const metadata: Metadata = {
   description: `Browse all product categories at ${storeConfig.content.name}.`,
 };
 
-const TINTS = [
-  'from-accent/20 to-accent/5',
-  'from-amber-200/50 to-amber-50',
-  'from-sky-200/50 to-sky-50',
-  'from-rose-200/50 to-rose-50',
-  'from-violet-200/50 to-violet-50',
-  'from-emerald-200/50 to-emerald-50',
-];
-
-function tileTint(seed: number): string {
-  return TINTS[seed % TINTS.length];
-}
-
-export default async function CategoriesPage() {
+/* ------------------------------------------------------------------ */
+/*  Grocery: flat long-scroll index (locked wireframe 2026-07-29).      */
+/*  Every department + all its subcategories as wrapping image tiles.   */
+/*  Replaced the earlier two-pane browser — the two-pane treatment      */
+/*  moved to /categories/[slug], where the rail sits beside products.   */
+/*  The menu tree is fetched on the server so the page is crawlable     */
+/*  and paints without a loading flash.                                */
+/* ------------------------------------------------------------------ */
+async function GroceryCategoriesView() {
   let categories: MenuCategory[] = [];
 
   try {
     const res = await getCategoryMenu();
     categories = res.data || [];
   } catch {
-    // fallback
+    // fallback to empty — the index renders its own empty state
   }
 
   return (
-    <main className="min-h-screen bg-white dark:bg-neutral-950">
-      {/* Header */}
-      <section className="border-b border-neutral-200 dark:border-neutral-800">
-        <div className="container mx-auto py-8 md:py-10">
-          <div className="flex items-stretch gap-4">
-            <div className="w-1 bg-accent rounded-full" />
-            <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-black uppercase leading-none text-neutral-900 dark:text-white tracking-tight">
-              Categories
-            </h1>
-          </div>
+    <div className="container mx-auto">
+      <h1 className="px-1 py-4 text-lg font-bold text-neutral-900 dark:text-white">
+        Shop by Category
+      </h1>
+      <GroceryCategoryIndex categories={categories} />
+    </div>
+  );
+}
+
+export default async function CategoriesPage() {
+  if (storeConfig.headerStyle === 'grocery') {
+    return <GroceryCategoriesView />;
+  }
+
+  return <FashionCategoriesView />;
+}
+
+async function FashionCategoriesView() {
+  let categories: { id: number; slug: string; name: string; banner: string; cover_image: string; icon: string; number_of_children: number }[] = [];
+
+  try {
+    const res = await getCategories();
+    categories = res.data || [];
+  } catch {
+    // fallback to empty
+  }
+
+  return (
+    <div className="container mx-auto py-12">
+      <SectionHeader
+        title="Shop by Category"
+        subtitle="Explore our curated collections"
+      />
+
+      {categories.length === 0 ? (
+        <div className="text-center py-20">
+          <p className="text-neutral-500 dark:text-neutral-400 text-lg">
+            No categories available at the moment.
+          </p>
         </div>
-      </section>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-10">
+          {categories.map((category) => (
+            <Link
+              key={category.id}
+              href={`/categories/${category.slug}`}
+              className="group relative aspect-[4/3] rounded-card overflow-hidden bg-neutral-100 dark:bg-neutral-800"
+            >
+              {category.banner ? (
+                <Image
+                  src={category.banner}
+                  alt={category.name}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                />
+              ) : category.icon ? (
+                <Image
+                  src={category.icon}
+                  alt={category.name}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800" />
+              )}
 
-      {/* Content */}
-      <div className="container mx-auto py-8 pb-16">
-        {categories.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-neutral-500 dark:text-neutral-400 text-lg">
-              No categories available at the moment.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-12">
-            {categories.map((category) => {
-              const subs = category.children ?? [];
-              if (subs.length === 0) return null;
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent transition-opacity duration-300 group-hover:from-black/80" />
 
-              return (
-                <section key={category.id}>
-                  {/* Section header */}
-                  <div className="mb-6">
-                    <h2 className="font-display text-xl font-bold text-neutral-900 dark:text-white">
-                      {category.name}
-                    </h2>
-                    <hr className="mt-2 border-neutral-200 dark:border-neutral-700" />
-                  </div>
-
-                  {/* Subcategory tile grid */}
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                    {subs.map((sub, i) => {
-                      const image = sub.icon || null;
-
-                      return (
-                        <Link
-                          key={sub.id}
-                          href={`/categories/${sub.slug}`}
-                          className="group flex flex-col items-center gap-2"
-                        >
-                          <div
-                            className={cn(
-                              'relative aspect-square w-full overflow-hidden',
-                              'rounded-[var(--radius-card)] bg-gradient-to-br',
-                              !image && tileTint(i),
-                              image && 'bg-neutral-50 dark:bg-neutral-900',
-                            )}
-                          >
-                            {image ? (
-                              <Image
-                                src={image}
-                                alt=""
-                                fill
-                                className="object-contain p-3 transition-transform duration-300 group-hover:scale-105"
-                                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
-                              />
-                            ) : (
-                              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold uppercase tracking-wide text-accent-dark">
-                                {sub.name.slice(0, 2)}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-center text-xs font-medium leading-tight text-neutral-700 dark:text-neutral-300 group-hover:text-accent line-clamp-2">
-                            {sub.name}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </main>
+              {/* Content */}
+              <div className="absolute inset-0 flex flex-col items-center justify-end p-6">
+                <h3 className="font-display text-xl font-semibold text-white text-center">
+                  {category.name}
+                </h3>
+                {category.number_of_children > 0 && (
+                  <p className="text-white/70 text-sm mt-1">
+                    {category.number_of_children} subcategories
+                  </p>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

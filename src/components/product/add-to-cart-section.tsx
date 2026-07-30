@@ -12,7 +12,7 @@ import { useToast } from '@/context/toast-context';
 import { addToWishlist } from '@/lib/api/wishlists';
 import { cn } from '@/lib/utils';
 import type { ProductDetail } from '@/lib/types';
-import { Heart, ShoppingBag, ChevronDown, Package, Tag, Truck } from 'lucide-react';
+import { Heart, ShoppingBag, ChevronDown, Package, Tag, Truck, Star } from 'lucide-react';
 
 /* -------------------------------------------------------------------------- */
 /*  ProductAccordion – reusable collapsible sections (client component)       */
@@ -23,16 +23,28 @@ export interface AccordionSection {
   content?: string;
   isHtml?: boolean;
   items?: { label: string; value: string }[];
+  /**
+   * Arbitrary rendered content. Takes precedence over `content`/`items`.
+   * Lets a Server Component pass in a whole panel (e.g. ProductReviews) or a
+   * row that needs a link rather than a plain string value. Used by the
+   * grocery detail page, where Reviews and the demoted shop link live inside
+   * accordions rather than as standalone sections.
+   */
+  node?: React.ReactNode;
+  /** Render expanded on first paint. Grocery opens "About this item" by default. */
+  defaultOpen?: boolean;
 }
 
 const sectionIcons: Record<string, React.ReactNode> = {
   Description: <Package size={18} className="shrink-0 text-neutral-500 dark:text-neutral-400" />,
+  'About this item': <Package size={18} className="shrink-0 text-neutral-500 dark:text-neutral-400" />,
   'Additional Information': <Tag size={18} className="shrink-0 text-neutral-500 dark:text-neutral-400" />,
   'Shipping & Returns': <Truck size={18} className="shrink-0 text-neutral-500 dark:text-neutral-400" />,
+  Reviews: <Star size={18} className="shrink-0 text-neutral-500 dark:text-neutral-400" />,
 };
 
 function AccordionItem({ section }: { section: AccordionSection }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(section.defaultOpen ?? false);
 
   return (
     <div className="border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
@@ -67,7 +79,9 @@ function AccordionItem({ section }: { section: AccordionSection }) {
       >
         <div className="overflow-hidden">
           <div className="pb-4 pl-7 pr-2 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
-            {section.isHtml && section.content ? (
+            {section.node ? (
+              section.node
+            ) : section.isHtml && section.content ? (
               <div
                 className="prose prose-sm prose-neutral dark:prose-invert max-w-none"
                 dangerouslySetInnerHTML={{ __html: section.content }}

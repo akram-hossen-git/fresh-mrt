@@ -52,6 +52,15 @@ export interface ProductDetail {
   downloads: string | null;
   video_link: string;
   brand: { id: number; slug: string; name: string; logo: string };
+  /** Primary category + its parent, for a category breadcrumb (e.g. "Dairy > Milk"). */
+  category?: {
+    id: number;
+    slug: string;
+    name: string;
+    parent: { id: number; slug: string; name: string } | null;
+  } | null;
+  /** Unformatted pre-discount price, for computing savings ("Save ৳X"). */
+  base_price_numeric?: number;
   link: string;
   wholesale: WholesalePrice[];
   est_shipping_time: number;

@@ -13,6 +13,14 @@ import type { FilterCategory, Brand } from '@/lib/api/filters';
 interface CategorySidebarProps {
   initialCategories?: FilterCategory[];
   initialBrands?: Brand[];
+  /**
+   * 'sidebar' (default) — pinned panel from `lg` up, drawer below it.
+   *   Used by the fashion/standard listing pages.
+   * 'drawer'  — no pinned panel at any breakpoint; the Filters trigger and
+   *   drawer are always shown. Used by the grocery listing page, where the
+   *   left column is occupied by <GroceryCategoryRail> instead.
+   */
+  mode?: 'sidebar' | 'drawer';
 }
 
 type SortOption = 'new_arrival' | 'price_low_to_high' | 'price_high_to_low' | 'popularity' | 'top_rated';
@@ -246,9 +254,17 @@ function FilterContent({
 export function CategorySidebar({
   initialCategories,
   initialBrands,
+  mode = 'sidebar',
 }: CategorySidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // In drawer mode nothing is pinned, so the trigger and overlay must not be
+  // hidden at `lg`. Collected here so every breakpoint rule stays in one place.
+  const isDrawerMode = mode === 'drawer';
+  const pinnedClass = isDrawerMode ? 'hidden' : 'hidden lg:block';
+  const triggerClass = isDrawerMode ? '' : 'lg:hidden';
+  const overlayClass = isDrawerMode ? '' : 'lg:hidden';
 
   const [categories, setCategories] = useState<FilterCategory[]>(initialCategories ?? []);
   const [brands, setBrands] = useState<Brand[]>(initialBrands ?? []);
@@ -394,7 +410,7 @@ export function CategorySidebar({
     return (
       <>
         {/* Desktop skeleton */}
-        <aside className="hidden lg:block w-64 shrink-0">
+        <aside className={cn(pinnedClass, 'w-64 shrink-0')}>
           <div className="rounded-[8px] border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
             <div className="animate-pulse space-y-4">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -412,7 +428,7 @@ export function CategorySidebar({
         </aside>
 
         {/* Mobile trigger (disabled while loading) */}
-        <div className="lg:hidden">
+        <div className={triggerClass}>
           <Button
             disabled
             variant="outline"
@@ -446,7 +462,7 @@ export function CategorySidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-64 shrink-0">
+      <aside className={cn(pinnedClass, 'w-64 shrink-0')}>
         <div className="sticky top-4 rounded-[8px] border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
           <h2 className="mb-1 font-display text-sm font-bold uppercase tracking-wider text-neutral-900 dark:text-neutral-100">
             Filters
@@ -456,7 +472,7 @@ export function CategorySidebar({
       </aside>
 
       {/* Mobile trigger */}
-      <div className="lg:hidden">
+      <div className={triggerClass}>
         <Button
           variant="outline"
           onClick={() => setMobileOpen(true)}
@@ -477,7 +493,7 @@ export function CategorySidebar({
 
       {/* Mobile drawer overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className={cn('fixed inset-0 z-50', overlayClass)}>
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 transition-all duration-300"

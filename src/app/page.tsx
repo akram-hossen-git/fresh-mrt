@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { storeConfig } from '@/config/store.config';
 import { getSliders, getBannersOne, getBannersTwo, getBannersThree, getFlashDeals } from '@/lib/api/home';
-import { getFeaturedCategories } from '@/lib/api/categories';
+import { getFeaturedCategories, getCategoryMenu } from '@/lib/api/categories';
 import { getFeaturedProducts, getBestSellers, getTodaysDeals } from '@/lib/api/products';
 import { HomepageSections } from '@/components/home/homepage-sections';
 import { GroceryHomepageSections } from '@/components/home/grocery/grocery-homepage-sections';
@@ -16,6 +16,7 @@ export default async function HomePage() {
   const [
     slidersResult,
     categoriesResult,
+    menuCategoriesResult,
     featuredResult,
     bestSellersResult,
     todaysDealsResult,
@@ -26,6 +27,7 @@ export default async function HomePage() {
   ] = await Promise.allSettled([
     getSliders(),
     getFeaturedCategories(),
+    getCategoryMenu(),
     getFeaturedProducts(),
     getBestSellers(),
     getTodaysDeals(),
@@ -38,6 +40,10 @@ export default async function HomePage() {
   const data = {
     sliders: slidersResult.status === 'fulfilled' ? slidersResult.value.data ?? [] : [],
     categories: categoriesResult.status === 'fulfilled' ? categoriesResult.value.data ?? [] : [],
+    // Full 3-level tree — the grocery "Shop by Aisle" section reads the
+    // top level + its children from this. Fetched server-side (rather than
+    // via CategoryMenuProvider) so it gets ISR caching and no loading flash.
+    menuCategories: menuCategoriesResult.status === 'fulfilled' ? menuCategoriesResult.value.data ?? [] : [],
     featuredProducts: featuredResult.status === 'fulfilled' ? featuredResult.value.data ?? [] : [],
     bestSellers: bestSellersResult.status === 'fulfilled' ? bestSellersResult.value.data ?? [] : [],
     todaysDeals: todaysDealsResult.status === 'fulfilled' ? todaysDealsResult.value.data ?? [] : [],

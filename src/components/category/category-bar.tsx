@@ -80,7 +80,7 @@ export function CategoryBar({ categories }: CategoryBarProps) {
               className="flex flex-col items-center gap-2 shrink-0 snap-start group"
             >
               {/* Circular image */}
-              <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800 ring-2 ring-transparent group-hover:ring-accent transition-all duration-300">
+              <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-md overflow-hidden bg-neutral-100 dark:bg-neutral-800 ring-2 ring-transparent group-hover:ring-accent transition-all duration-300">
                 {image ? (
                   <Image
                     src={image}
